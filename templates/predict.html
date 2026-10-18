@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Food Waste Prediction{% endblock %}
+{% block header_title %}Machine Learning Waste Prediction{% endblock %}
+{% block header_subtitle %}Scikit-Learn regression model to forecast surplus food waste and guide batch prep sizing{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+
+  <!-- ML Model Status & Metrics Card -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3>Scikit-Learn Model Status & Evaluation</h3>
+        <p class="card-subtitle">Regression trained strictly on your hotel's actual MongoDB historical food logs</p>
+      </div>
+      {% if model_result.status == 'trained_evaluated' %}
+        <span class="badge badge-low" style="padding: 6px 12px; font-size: 13px;">✅ Scikit-Learn ML Model Active</span>
+      {% elif model_result.status == 'trained_initial' %}
+        <span class="badge badge-mid" style="padding: 6px 12px; font-size: 13px;">⚠️ Initial Model (Small Sample)</span>
+      {% else %}
+        <span class="badge badge-high" style="padding: 6px 12px; font-size: 13px;">ℹ️ Need More Records</span>
+      {% endif %}
+    </div>
+
+    {% if model_result.status in ['trained_evaluated', 'trained_initial'] %}
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 16px;">
+        <div style="background-color: #f8fafc; padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Evaluation Method</div>
+          <div style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-top: 4px;">{{ model_result.metrics.evaluation_type }}</div>
+        </div>
+
+        <div style="background-color: #f8fafc; padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Mean Absolute Error (MAE)</div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--emerald-700); margin-top: 2px;">{{ model_result.metrics.mae }} <span style="font-size: 13px;">kg</span></div>
+        </div>
+
+        <div style="background-color: #f8fafc; padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Root Mean Squared Error (RMSE)</div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin-top: 2px;">{{ model_result.metrics.rmse }} <span style="font-size: 13px;">kg</span></div>
+        </div>
+
+        <div style="background-color: #f8fafc; padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">R² Determination Score</div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin-top: 2px;">
+            {% if model_result.metrics.r2 is not none %}
+              {{ model_result.metrics.r2 }}
+            {% else %}
+              <span style="font-size: 13px; font-weight: 500; color: var(--text-muted);">Sample too small</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size: 13px; color: var(--text-secondary); background-color: var(--emerald-50); border: 1px solid var(--emerald-200); padding: 12px 16px; border-radius: var(--radius-sm);">
+        <strong>Model Details:</strong> {{ model_result.message }} Features utilized: <code>quantity_prepared</code>, <code>people_served</code>, <code>food_category</code>, <code>day_of_week</code>.
+      </div>
+    {% else %}
+      <div style="font-size: 14px; color: var(--text-secondary); background-color: var(--amber-50); border: 1px solid #fde68a; padding: 16px; border-radius: var(--radius-sm); line-height: 1.6;">
+        <strong style="color: var(--amber-600);">Notice regarding Machine Learning Model:</strong>
+        <p style="margin-top: 6px;">{{ model_result.message }}</p>
+        <p style="margin-top: 6px; font-size: 13px; color: var(--text-muted);">
+          Genuine Scikit-Learn training requires sufficient variance across batches. In the meantime, the tool will provide a baseline estimation derived from your recorded category averages.
+        </p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Prediction Input Form -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3>Plan Next Meal Service</h3>
+        <p class="card-subtitle">Input your upcoming prep quantity and expected headcount to estimate surplus</p>
+      </div>
+    </div>
+
+    <form action="{{ url_for('predict') }}" method="POST">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label" for="food_category">Food Category <span class="required">*</span></label>
+          <select id="food_category" name="food_category" class="form-control" required>
+            {% for cat in categories %}
+              <option value="{{ cat }}" {% if form_data.food_category == cat %}selected{% endif %}>{{ cat }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="day_of_week">Day of Service <span class="required">*</span></label>
+          <select id="day_of_week" name="day_of_week" class="form-control" required>
+            {% for d in days %}
+              <option value="{{ d }}" {% if form_data.day_of_week == d %}selected{% endif %}>{{ d }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="quantity_prepared">Planned Quantity to Prepare (kg) <span class="required">*</span></label>
+          <input type="number" step="0.01" min="0.1" id="quantity_prepared" name="quantity_prepared" class="form-control" 
+                 value="{{ form_data.quantity_prepared }}" placeholder="e.g. 35.0" required>
+          <div class="form-text">Weight in kilograms planned for this service.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="people_served">Expected Diners / People Served <span class="required">*</span></label>
+          <input type="number" min="1" id="people_served" name="people_served" class="form-control" 
+                 value="{{ form_data.people_served }}" placeholder="e.g. 100" required>
+          <div class="form-text">Expected headcount for this meal.</div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="padding: 12px 28px; margin-top: 10px;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        Generate Food Waste Prediction
+      </button>
+    </form>
+
+    <!-- Prediction Output -->
+    {% if prediction %}
+      <div class="prediction-box">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <span style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--emerald-800);">
+            🎯 Prediction Output & Recommendation
+          </span>
+          <span class="badge {% if prediction.is_ml_model %}badge-low{% else %}badge-mid{% endif %}">
+            {{ prediction.method }}
+          </span>
+        </div>
+
+        <div class="prediction-highlight">
+          <span class="prediction-number">{{ prediction.predicted_wasted_kg }} kg</span>
+          <span class="prediction-pct">({{ prediction.predicted_waste_percentage }}% of prepared volume)</span>
+        </div>
+
+        <div style="font-size: 14px; color: var(--text-secondary); line-height: 1.6;">
+          <strong>Explanation:</strong> {{ prediction.explanation }}
+        </div>
+
+        <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--emerald-200); font-size: 13px; color: var(--text-secondary);">
+          {% if prediction.predicted_waste_percentage > 20 %}
+            <strong style="color: var(--red-600);">⚠️ High Surplus Risk:</strong> Forecasted waste is over 20%. Consider reducing batch prep by {{ (prediction.predicted_wasted_kg * 0.75)|round(1) }} kg or scheduling phased batch cooking.
+          {% elif prediction.predicted_waste_percentage > 10 %}
+            <strong style="color: var(--amber-600);">⚡ Moderate Margin:</strong> Forecasted surplus is manageable. Ensure excess portions can be cooled or repurposed.
+          {% else %}
+            <strong style="color: var(--emerald-700);">✅ Optimal Batch Sizing:</strong> Expected waste is below 10%, indicating excellent portion control.
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,521 @@
+{% extends "base.html" %}
+
+{% block title %}Data Science Analysis{% endblock %}
+{% block header_title %}Data Science Food Waste Analysis{% endblock %}
+{% block header_subtitle %}Statistical analysis, trends, correlations, and visualizations powered by Pandas and NumPy{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('add_food') }}" class="btn btn-primary">
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+  + Add New Food Record
+</a>
+{% endblock %}
+
+{% block content %}
+{% if not analysis.has_data %}
+  <div class="card">
+    <div class="empty-state">
+      <div class="empty-icon">📊</div>
+      <h3>Insufficient Data for Analysis</h3>
+      <p>{{ analysis.message }}</p>
+      <a href="{{ url_for('add_food') }}" class="btn btn-primary">+ Record Your First Meal</a>
+    </div>
+  </div>
+{% else %}
+
+  <!-- KPI Statistical Summary (Pandas & NumPy) -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-icon blue">⚖️</div>
+      <div class="stat-content">
+        <div class="stat-label">Total Prepared</div>
+        <div class="stat-value">{{ "%.2f"|format(analysis.total_prepared) }} <span style="font-size: 14px;">kg</span></div>
+        <div class="stat-subtext">Across {{ analysis.total_records }} logged records</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon emerald">🥗</div>
+      <div class="stat-content">
+        <div class="stat-label">Total Consumed</div>
+        <div class="stat-value">{{ "%.2f"|format(analysis.total_consumed) }} <span style="font-size: 14px;">kg</span></div>
+        <div class="stat-subtext">Served to {{ analysis.total_people }} guests</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon red">🗑️</div>
+      <div class="stat-content">
+        <div class="stat-label">Total Wasted</div>
+        <div class="stat-value">{{ "%.2f"|format(analysis.total_wasted) }} <span style="font-size: 14px;">kg</span></div>
+        <div class="stat-subtext">Cumulative food loss</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon amber">📉</div>
+      <div class="stat-content">
+        <div class="stat-label">Overall Waste Rate</div>
+        <div class="stat-value">{{ "%.1f"|format(analysis.overall_waste_pct) }}%</div>
+        <div class="stat-subtext">Total Waste / Prepared</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Descriptive Statistics Cards -->
+  <div class="card" style="padding: 18px 24px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; align-items: center;">
+      <div>
+        <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Average Waste / Meal</div>
+        <div style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin-top: 4px;">{{ analysis.avg_waste_per_record }} kg</div>
+        <div style="font-size: 11px; color: var(--text-muted);">Mean surplus per recorded batch</div>
+      </div>
+
+      <div>
+        <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Median Waste</div>
+        <div style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin-top: 4px;">{{ analysis.median_waste }} kg</div>
+        <div style="font-size: 11px; color: var(--text-muted);">50th percentile (robust to outliers)</div>
+      </div>
+
+      <div>
+        <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Standard Deviation</div>
+        <div style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin-top: 4px;">&plusmn; {{ analysis.std_waste }} kg</div>
+        <div style="font-size: 11px; color: var(--text-muted);">Batch-to-batch variability (&sigma;)</div>
+      </div>
+
+      <div>
+        <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Highest Waste Record</div>
+        <div style="font-size: 15px; font-weight: 700; color: var(--red-600); margin-top: 4px;">
+          {{ analysis.max_record.food_name }} ({{ "%.2f"|format(analysis.max_record.quantity_wasted) }} kg)
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted);">Logged on {{ analysis.max_record.food_date }}</div>
+      </div>
+
+      <div>
+        <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Lowest Waste Record</div>
+        <div style="font-size: 15px; font-weight: 700; color: var(--emerald-600); margin-top: 4px;">
+          {{ analysis.min_record.food_name }} ({{ "%.2f"|format(analysis.min_record.quantity_wasted) }} kg)
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted);">Logged on {{ analysis.min_record.food_date }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data-Driven Insights Section -->
+  {% if analysis.insights and analysis.insights|length > 0 %}
+    <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+      💡 Data-Driven Operational Insights
+    </h3>
+    <div class="insights-grid">
+      {% for ins in analysis.insights %}
+        <div class="insight-card {{ ins.type }}">
+          <div class="insight-header">
+            <span class="insight-title">{{ ins.title }}</span>
+            <span class="insight-badge">{{ ins.badge }}</span>
+          </div>
+          <p class="insight-text">{{ ins.text }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <!-- 6 Visualizations Grid -->
+  <div class="charts-grid">
+    <!-- Chart 1: Bar chart: Prepared vs Consumed vs Wasted -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <h3>1. Prepared vs Consumed vs Wasted</h3>
+          <p class="card-subtitle">Aggregate volume breakdown (Kilograms)</p>
+        </div>
+        <span class="badge badge-neutral">Bar Chart</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="prepConsWasteChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 2: Doughnut chart: Consumed vs Wasted -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <h3>2. Consumption vs Surplus Waste</h3>
+          <p class="card-subtitle">Proportion of prepared food consumed vs lost</p>
+        </div>
+        <span class="badge badge-neutral">Doughnut Chart</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="doughnutChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 3: Bar chart: Waste by food category -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <h3>3. Waste by Food Category</h3>
+          <p class="card-subtitle">Cumulative kilograms wasted across categories</p>
+        </div>
+        <span class="badge badge-neutral">Category Bar</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="categoryWasteChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 4: Line chart: Daily food waste trend -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <h3>4. Daily Food Waste Trend</h3>
+          <p class="card-subtitle">Historical day-by-day food waste trajectory</p>
+        </div>
+        <span class="badge badge-neutral">Line Trend</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="dailyTrendChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 5: Bar chart: Waste by day of the week -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <h3>5. Food Waste by Day of Week</h3>
+          <p class="card-subtitle">Weekly cyclical comparison (Monday – Sunday)</p>
+        </div>
+        <span class="badge badge-neutral">Weekday Bar</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="weekdayWasteChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 6: Scatter plot: People served vs food waste -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <h3>6. People Served vs Food Waste</h3>
+          <p class="card-subtitle">
+            Scatter distribution &bull; Correlation: 
+            <strong>
+              {% if analysis.correlation_coefficient is not none %}
+                {{ analysis.correlation_coefficient }}
+              {% else %}
+                N/A (insufficient variance)
+              {% endif %}
+            </strong>
+          </p>
+        </div>
+        <span class="badge badge-neutral">Scatter Plot</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="scatterChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if analysis.has_data %}
+<!-- JSON Data Island for Analysis Visualizations (prevents VS Code JS syntax errors) -->
+<script type="application/json" id="analysisChartsData">
+{
+  "totalPrepared": {{ analysis.total_prepared | tojson }},
+  "totalConsumed": {{ analysis.total_consumed | tojson }},
+  "totalWasted": {{ analysis.total_wasted | tojson }},
+  "categoryChart": {{ analysis.category_chart | tojson }},
+  "dateChart": {{ analysis.date_chart | tojson }},
+  "dayChart": {{ analysis.day_chart | tojson }},
+  "scatterPoints": {{ analysis.scatter_points | tojson }}
+}
+</script>
+
+<script>
+  (function() {
+    const dataElement = document.getElementById('analysisChartsData');
+    if (!dataElement) return;
+
+    const data = JSON.parse(dataElement.textContent);
+    const totalPrepared = data.totalPrepared;
+    const totalConsumed = data.totalConsumed;
+    const totalWasted = data.totalWasted;
+    const catData = data.categoryChart;
+    const trendData = data.dateChart;
+    const dayData = data.dayChart;
+    const rawScatter = data.scatterPoints;
+
+    // Chart 1: Bar chart: Prepared vs Consumed vs Wasted
+    const pcmCtx = document.getElementById('prepConsWasteChart');
+    if (pcmCtx) {
+      const pcmChart = new Chart(pcmCtx, {
+        type: 'bar',
+        data: {
+          labels: ['Prepared Quantity', 'Consumed Quantity', 'Surplus Wasted'],
+          datasets: [{
+            label: 'Total Kilograms (kg)',
+            data: [totalPrepared, totalConsumed, totalWasted],
+            backgroundColor: ['#3b82f6', '#10b981', '#ef4444'],
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 1200,
+            easing: 'easeOutQuart'
+          },
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Weight (kg)' },
+              grid: { color: '#f1f5f9' }
+            },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+      if (window.FoodWasteAnimations) {
+        window.FoodWasteAnimations.registerChart('prepConsWasteChart', pcmChart);
+      }
+    }
+
+    // Chart 2: Doughnut chart: Consumed vs Wasted
+    const doughCtx = document.getElementById('doughnutChart');
+    if (doughCtx) {
+      const doughChart = new Chart(doughCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Consumed Food', 'Wasted Food'],
+          datasets: [{
+            data: [totalConsumed, totalWasted],
+            backgroundColor: ['#10b981', '#ef4444'],
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            animateRotate: true,
+            animateScale: true,
+            duration: 1400,
+            easing: 'easeOutCubic'
+          },
+          plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  const total = totalConsumed + totalWasted;
+                  const val = ctx.raw;
+                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                  return `${ctx.label}: ${val.toFixed(2)} kg (${pct}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+      if (window.FoodWasteAnimations) {
+        window.FoodWasteAnimations.registerChart('doughnutChart', doughChart);
+      }
+    }
+
+    // Chart 3: Bar chart: Waste by food category
+    const catCtx = document.getElementById('categoryWasteChart');
+    if (catCtx && catData && catData.labels) {
+      const catChart = new Chart(catCtx, {
+        type: 'bar',
+        data: {
+          labels: catData.labels,
+          datasets: [{
+            label: 'Wasted Food (kg)',
+            data: catData.wasted,
+            backgroundColor: '#f59e0b',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 1300,
+            easing: 'easeOutQuart'
+          },
+          plugins: {
+            legend: { position: 'top' }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Kilograms (kg)' },
+              grid: { color: '#f1f5f9' }
+            }
+          }
+        }
+      });
+      if (window.FoodWasteAnimations) {
+        window.FoodWasteAnimations.registerChart('categoryWasteChart', catChart);
+      }
+    }
+
+    // Chart 4: Line chart: Daily food waste trend
+    const trendCtx = document.getElementById('dailyTrendChart');
+    if (trendCtx && trendData && trendData.labels) {
+      const trendChart = new Chart(trendCtx, {
+        type: 'line',
+        data: {
+          labels: trendData.labels,
+          datasets: [
+            {
+              label: 'Daily Waste (kg)',
+              data: trendData.wasted,
+              borderColor: '#ef4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              fill: true,
+              tension: 0.35,
+              pointBackgroundColor: '#ef4444',
+              pointRadius: 4,
+              pointHoverRadius: 7
+            },
+            {
+              label: 'Daily Prepared (kg)',
+              data: trendData.prepared,
+              borderColor: '#3b82f6',
+              borderDash: [5, 5],
+              fill: false,
+              tension: 0.35,
+              pointBackgroundColor: '#3b82f6',
+              pointRadius: 4,
+              pointHoverRadius: 7
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 1500,
+            easing: 'easeOutCubic'
+          },
+          plugins: {
+            legend: { position: 'top' }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Kilograms (kg)' },
+              grid: { color: '#f1f5f9' }
+            }
+          }
+        }
+      });
+      if (window.FoodWasteAnimations) {
+        window.FoodWasteAnimations.registerChart('dailyTrendChart', trendChart);
+      }
+    }
+
+    // Chart 5: Bar chart: Waste by day of the week
+    const dayCtx = document.getElementById('weekdayWasteChart');
+    if (dayCtx && dayData && dayData.labels) {
+      const dayChart = new Chart(dayCtx, {
+        type: 'bar',
+        data: {
+          labels: dayData.labels,
+          datasets: [{
+            label: 'Total Wasted (kg)',
+            data: dayData.wasted,
+            backgroundColor: '#059669',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 1300,
+            easing: 'easeOutQuart'
+          },
+          plugins: {
+            legend: { position: 'top' }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Kilograms (kg)' },
+              grid: { color: '#f1f5f9' }
+            }
+          }
+        }
+      });
+      if (window.FoodWasteAnimations) {
+        window.FoodWasteAnimations.registerChart('weekdayWasteChart', dayChart);
+      }
+    }
+
+    // Chart 6: Scatter plot: People served vs food waste
+    const scatterCtx = document.getElementById('scatterChart');
+    if (scatterCtx && Array.isArray(rawScatter)) {
+      const scatterChart = new Chart(scatterCtx, {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: 'Logged Meals',
+            data: rawScatter.map(function(p) { return { x: p.x, y: p.y, name: p.food_name, date: p.date }; }),
+            backgroundColor: 'rgba(16, 185, 129, 0.75)',
+            borderColor: '#059669',
+            pointRadius: 6,
+            pointHoverRadius: 9
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 1200,
+            easing: 'easeOutBounce',
+            delay: function(ctx) { return ctx.dataIndex * 35; }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  const pt = ctx.raw;
+                  return `${pt.name} (${pt.date}): ${pt.x} people served → ${pt.y} kg wasted`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: { display: true, text: 'People Served (Headcount)' },
+              grid: { color: '#f1f5f9' }
+            },
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Food Wasted (kg)' },
+              grid: { color: '#f1f5f9' }
+            }
+          }
+        }
+      });
+      if (window.FoodWasteAnimations) {
+        window.FoodWasteAnimations.registerChart('scatterChart', scatterChart);
+      }
+    }
+  })();
+</script>
+{% endif %}
+{% endblock %}

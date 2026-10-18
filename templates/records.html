@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Food Records{% endblock %}
+{% block header_title %}Hotel Food Records Log{% endblock %}
+{% block header_subtitle %}Master historical log of prepared batches, consumption, and calculated waste{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('add_food') }}" class="btn btn-primary">
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+  + Add Food Details
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Summary Header Cards -->
+<div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+  <div class="stat-card">
+    <div class="stat-icon emerald">📋</div>
+    <div class="stat-content">
+      <div class="stat-label">Total Records</div>
+      <div class="stat-value">{{ summary.count }}</div>
+      <div class="stat-subtext">Logged meal batches</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon blue">📦</div>
+    <div class="stat-content">
+      <div class="stat-label">Total Prepared</div>
+      <div class="stat-value">{{ "%.1f"|format(summary.prepared) }} <span style="font-size: 14px;">kg</span></div>
+      <div class="stat-subtext">Cumulative food made</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon amber">🍽️</div>
+    <div class="stat-content">
+      <div class="stat-label">Total Consumed</div>
+      <div class="stat-value">{{ "%.1f"|format(summary.consumed) }} <span style="font-size: 14px;">kg</span></div>
+      <div class="stat-subtext">Consumed by customers</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon red">🗑️</div>
+    <div class="stat-content">
+      <div class="stat-label">Total Wasted</div>
+      <div class="stat-value">{{ "%.1f"|format(summary.wasted) }} <span style="font-size: 14px;">kg</span></div>
+      <div class="stat-subtext">Cumulative food loss</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon {% if summary.waste_pct > 20 %}red{% elif summary.waste_pct > 10 %}amber{% else %}emerald{% endif %}">
+      📈
+    </div>
+    <div class="stat-content">
+      <div class="stat-label">Avg Waste Rate</div>
+      <div class="stat-value">{{ "%.1f"|format(summary.waste_pct) }}%</div>
+      <div class="stat-subtext">Waste / Prepared</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters Bar -->
+<div class="filter-bar">
+  <form method="GET" action="{{ url_for('records') }}" style="display: flex; gap: 16px; flex-wrap: wrap; width: 100%; align-items: flex-end;">
+    <div class="filter-group">
+      <div>
+        <label class="form-label" style="font-size: 12px; margin-bottom: 4px;">Filter by Date</label>
+        <input type="date" name="date" class="form-control" value="{{ filter_date }}" style="padding: 8px 12px; font-size: 13px;">
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <div>
+        <label class="form-label" style="font-size: 12px; margin-bottom: 4px;">Filter by Category</label>
+        <select name="category" class="form-control" style="padding: 8px 12px; font-size: 13px;">
+          <option value="">All Categories</option>
+          {% for cat in categories %}
+            <option value="{{ cat }}" {% if filter_category == cat %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 8px;">
+      <button type="submit" class="btn btn-primary btn-sm" style="padding: 9px 16px;">
+        Apply Filter
+      </button>
+      {% if filter_date or filter_category %}
+        <a href="{{ url_for('records') }}" class="btn btn-secondary btn-sm" style="padding: 9px 16px;">
+          Reset Filters
+        </a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- Records Data Table -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h3>Saved Food Records ({{ records|length }} Found)</h3>
+      <p class="card-subtitle">Stored in MongoDB collection "food_records" &bull; Sorted latest first</p>
+    </div>
+  </div>
+
+  {% if records and records|length > 0 %}
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Date & Day</th>
+            <th>Food Item</th>
+            <th>Category</th>
+            <th>Prepared (kg)</th>
+            <th>Consumed (kg)</th>
+            <th>Wasted (kg)</th>
+            <th>Waste %</th>
+            <th>Headcount</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+            <tr>
+              <td>
+                <strong>{{ r.food_date }}</strong>
+                <div style="font-size: 11px; color: var(--text-muted);">{{ r.day_of_week|default('') }}</div>
+              </td>
+              <td><strong>{{ r.food_name }}</strong></td>
+              <td><span class="badge badge-neutral">{{ r.food_category }}</span></td>
+              <td>{{ "%.2f"|format(r.quantity_prepared) }} kg</td>
+              <td>{{ "%.2f"|format(r.quantity_consumed) }} kg</td>
+              <td>
+                <strong style="color: var(--red-600);">{{ "%.2f"|format(r.quantity_wasted) }} kg</strong>
+              </td>
+              <td>
+                {% set wp = r.waste_percentage|default(0.0) %}
+                <span class="badge {% if wp > 20 %}badge-high{% elif wp > 10 %}badge-mid{% else %}badge-low{% endif %}">
+                  {{ "%.1f"|format(wp) }}%
+                </span>
+              </td>
+              <td>{{ r.people_served }} guests</td>
+              <td>
+                <form action="{{ url_for('delete_record', record_id=r._id) }}" method="POST" 
+                      onsubmit="return confirm('Are you sure you want to permanently delete this record?');" style="margin: 0;">
+                  <button type="submit" class="btn btn-sm btn-danger-light" title="Delete record">
+                    🗑️ Delete
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📁</div>
+      <h3>No Food Records Found</h3>
+      <p>
+        {% if filter_date or filter_category %}
+          No records matched your selected filter criteria. Try resetting filters or choosing a different date.
+        {% else %}
+          You have not added any food records yet. Use the Add Food Details form to begin logging meals.
+        {% endif %}
+      </p>
+      {% if filter_date or filter_category %}
+        <a href="{{ url_for('records') }}" class="btn btn-secondary">Clear Filters</a>
+      {% else %}
+        <a href="{{ url_for('add_food') }}" class="btn btn-primary">+ Add Today's Food Details</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

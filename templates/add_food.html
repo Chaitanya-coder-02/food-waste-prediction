@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Add Food Details{% endblock %}
+{% block header_title %}Add Daily Food Record{% endblock %}
+{% block header_subtitle %}Record dishes prepared and consumed to track surplus and waste for {{ current_owner.hotel }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3>Daily Meal Entry Form</h3>
+        <p class="card-subtitle">Fill in the prepared food quantities and consumption figures</p>
+      </div>
+      <a href="{{ url_for('records') }}" class="btn btn-secondary btn-sm">View Saved Records</a>
+    </div>
+
+    <form action="{{ url_for('add_food') }}" method="POST" id="foodForm">
+      <div class="form-grid">
+        <!-- Food Name -->
+        <div class="form-group">
+          <label class="form-label" for="food_name">Food Name <span class="required">*</span></label>
+          <input type="text" id="food_name" name="food_name" class="form-control" 
+                 placeholder="e.g. Biryani, Dal Makhani, Chapati, Paneer Gravy" required autofocus>
+          <div class="form-text">Name of the dish or food item prepared.</div>
+        </div>
+
+        <!-- Category -->
+        <div class="form-group">
+          <label class="form-label" for="food_category">Food Category <span class="required">*</span></label>
+          <select id="food_category" name="food_category" class="form-control" required>
+            <option value="" disabled selected>-- Select Food Category --</option>
+            <option value="Main Course">Main Course</option>
+            <option value="Rice Dishes">Rice Dishes (Biryani, Fried Rice, Pulao)</option>
+            <option value="Breads">Breads (Roti, Naan, Chapati, Paratha)</option>
+            <option value="Curries & Gravy">Curries & Gravy (Dal, Paneer, Chicken)</option>
+            <option value="Starters & Snacks">Starters & Snacks</option>
+            <option value="Desserts & Sweets">Desserts & Sweets</option>
+            <option value="Vegetables & Salads">Vegetables & Salads</option>
+            <option value="Beverages">Beverages</option>
+          </select>
+          <div class="form-text">Helps group waste for Data Science analysis.</div>
+        </div>
+
+        <!-- Quantity Prepared -->
+        <div class="form-group">
+          <label class="form-label" for="quantity_prepared">Quantity Prepared (in kg) <span class="required">*</span></label>
+          <input type="number" step="0.01" min="0.01" id="quantity_prepared" name="quantity_prepared" class="form-control" 
+                 placeholder="e.g. 25.50" required>
+          <div class="form-text">Total batch weight prepared in kilograms.</div>
+        </div>
+
+        <!-- Quantity Consumed -->
+        <div class="form-group">
+          <label class="form-label" for="quantity_consumed">Quantity Consumed (in kg) <span class="required">*</span></label>
+          <input type="number" step="0.01" min="0" id="quantity_consumed" name="quantity_consumed" class="form-control" 
+                 placeholder="e.g. 21.00" required>
+          <div class="form-text">Quantity actually eaten/served to guests.</div>
+        </div>
+
+        <!-- People Served -->
+        <div class="form-group">
+          <label class="form-label" for="people_served">Number of People Served</label>
+          <input type="number" min="0" id="people_served" name="people_served" class="form-control" 
+                 placeholder="e.g. 80" value="0">
+          <div class="form-text">Estimated headcount or orders fulfilled.</div>
+        </div>
+
+        <!-- Date & Derived Day of Week -->
+        <div class="form-group">
+          <label class="form-label" for="food_date">Date of Meal Service <span class="required">*</span></label>
+          <input type="date" id="food_date" name="food_date" class="form-control" 
+                 value="{{ today_date }}" required>
+          <div class="form-text" id="dayIndicator">Day of Week: <strong>Derived automatically</strong></div>
+        </div>
+      </div>
+
+      <!-- Live Calculation Preview Box -->
+      <div id="calcPreview" class="prediction-box" style="display: none; margin-top: 15px; margin-bottom: 25px;">
+        <div style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--emerald-700);">
+          ⚡ Live Auto-Calculation Preview
+        </div>
+        <div style="display: flex; gap: 30px; margin-top: 10px; flex-wrap: wrap;">
+          <div>
+            <div style="font-size: 12px; color: var(--text-muted);">Estimated Food Wasted:</div>
+            <div id="previewWasted" style="font-size: 24px; font-weight: 800; color: var(--red-600);">0.00 kg</div>
+          </div>
+          <div>
+            <div style="font-size: 12px; color: var(--text-muted);">Waste Percentage:</div>
+            <div id="previewPct" style="font-size: 24px; font-weight: 800; color: var(--text-primary);">0.0%</div>
+          </div>
+          <div>
+            <div style="font-size: 12px; color: var(--text-muted);">Formula:</div>
+            <div style="font-size: 13px; color: var(--text-secondary); margin-top: 5px;">
+              Prepared − Consumed = Surplus Wasted
+            </div>
+          </div>
+        </div>
+        <div id="previewError" style="display: none; margin-top: 10px; color: var(--red-600); font-size: 13px; font-weight: 600;"></div>
+      </div>
+
+      <div style="display: flex; gap: 14px; margin-top: 24px;">
+        <button type="submit" id="submitBtn" class="btn btn-primary" style="padding: 12px 28px;">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          Save to MongoDB & Update Analytics
+        </button>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Derive day of week dynamically
+  const dateInput = document.getElementById('food_date');
+  const dayIndicator = document.getElementById('dayIndicator');
+  const prepInput = document.getElementById('quantity_prepared');
+  const consInput = document.getElementById('quantity_consumed');
+  const calcBox = document.getElementById('calcPreview');
+  const previewWasted = document.getElementById('previewWasted');
+  const previewPct = document.getElementById('previewPct');
+  const previewError = document.getElementById('previewError');
+  const submitBtn = document.getElementById('submitBtn');
+
+  function updateDay() {
+    if (dateInput.value) {
+      const d = new Date(dateInput.value + 'T00:00:00');
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      dayIndicator.innerHTML = `Day of Week: <strong style="color: var(--emerald-700);">${days[d.getDay()]}</strong>`;
+    }
+  }
+
+  function updateCalc() {
+    const prep = parseFloat(prepInput.value);
+    const cons = parseFloat(consInput.value);
+
+    if (!isNaN(prep) && prep > 0 && !isNaN(cons) && cons >= 0) {
+      calcBox.style.display = 'block';
+      if (cons > prep) {
+        previewError.style.display = 'block';
+        previewError.innerText = '⚠️ Error: Consumed quantity cannot exceed prepared quantity.';
+        previewWasted.innerText = 'Invalid';
+        previewPct.innerText = 'Invalid';
+        submitBtn.disabled = true;
+      } else {
+        previewError.style.display = 'none';
+        submitBtn.disabled = false;
+        const wasted = Math.max(0, prep - cons);
+        const pct = ((wasted / prep) * 100);
+        previewWasted.innerText = wasted.toFixed(2) + ' kg';
+        previewPct.innerText = pct.toFixed(1) + '%';
+      }
+    } else {
+      calcBox.style.display = 'none';
+      submitBtn.disabled = false;
+    }
+  }
+
+  dateInput.addEventListener('change', updateDay);
+  prepInput.addEventListener('input', updateCalc);
+  consInput.addEventListener('input', updateCalc);
+  updateDay();
+</script>
+{% endblock %}

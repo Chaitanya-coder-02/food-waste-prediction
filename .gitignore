@@ -1,0 +1,19 @@
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Local MongoDB installation and data
+mongodb/bin/
+mongodb/data/
+mongodb/logs/
+
+# Generated files
+*.log

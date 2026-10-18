@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Owner Login – Food Waste Prediction</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
+  <!-- Three.js 3D Engine & GSAP -->
+  <script src="{{ url_for('static', filename='js/vendor/three.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/vendor/gsap.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/vendor/ScrollTrigger.min.js') }}"></script>
+  <script>
+    if (!window.THREE) document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"><\/script>');
+    if (!window.gsap) document.write('<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"><\/script>');
+    if (!window.ScrollTrigger) document.write('<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"><\/script>');
+  </script>
+</head>
+<body class="auth-page">
+  <!-- Parallax Background Layer -->
+  <div class="parallax-bg-layer" aria-hidden="true">
+    <div class="parallax-orb orb-1"></div>
+    <div class="parallax-orb orb-2"></div>
+    <div class="parallax-orb orb-3"></div>
+  </div>
+
+  <!-- Three.js 3D Floating Sustainability Scene -->
+  <div id="three-scene-container" class="three-scene-container" aria-hidden="true">
+    <canvas id="three-canvas"></canvas>
+    <div id="webgl-fallback-leaf" class="webgl-fallback-leaf" style="display: none;">
+      <svg viewBox="0 0 100 100" class="fallback-leaf-svg">
+        <path d="M50,15 C65,25 85,45 80,75 C75,90 60,95 50,95 C40,95 25,90 20,75 C15,45 35,25 50,15 Z" fill="url(#leafGradLogin)"/>
+        <path d="M50,95 Q50,55 50,20" stroke="#047857" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <defs>
+          <linearGradient id="leafGradLogin" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#34d399"/>
+            <stop offset="100%" stop-color="#059669"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+  </div>
+
+  <div class="auth-container-3d">
+    <!-- Left Hero Banner -->
+    <div class="auth-hero-banner">
+      <div class="auth-hero-badge">🌿 Zero Food Waste AI</div>
+      <h1 class="auth-hero-title">Predict Surplus. <br><span>Save Food & Cost.</span></h1>
+      <p class="auth-hero-desc">
+        Empowering hospitality leaders and commercial kitchens with machine learning forecasting, MongoDB audit trails, and automated surplus reduction intelligence.
+      </p>
+
+      <div class="auth-feature-pills">
+        <div class="auth-feature-pill">
+          <div class="pill-icon">📊</div>
+          <div>Real-time Data Science Waste Dashboards</div>
+        </div>
+        <div class="auth-feature-pill">
+          <div class="pill-icon">🤖</div>
+          <div>Scikit-Learn Machine Learning Predictive Sizing</div>
+        </div>
+        <div class="auth-feature-pill">
+          <div class="pill-icon">🍃</div>
+          <div>Sustainable Operations & Cost Reduction</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Login Card -->
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-logo">🥗</div>
+        <h2>Hotel Owner Login</h2>
+        <p>Sign in to access your hotel's food waste dashboard and analytics</p>
+      </div>
+
+      <!-- Flash Messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-container">
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">
+                <span>{{ message }}</span>
+                <button type="button" class="alert-close" onclick="this.parentElement.remove();">&times;</button>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form action="{{ url_for('login') }}" method="POST">
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address <span class="required">*</span></label>
+          <input type="email" id="email" name="email" class="form-control" placeholder="owner@hotel.com" required autofocus>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password <span class="required">*</span></label>
+          <input type="password" id="password" name="password" class="form-control" placeholder="Enter your password" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px; padding: 13px;">
+          Sign In to Dashboard
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        New hotel or canteen owner? <a href="{{ url_for('register') }}">Create an Account</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3D Scene and Animation Scripts -->
+  <script src="{{ url_for('static', filename='js/scroll-3d.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/animations.js') }}"></script>
+</body>
+</html>

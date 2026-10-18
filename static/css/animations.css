@@ -1,0 +1,467 @@
+/* ==========================================================================
+   Food Waste Prediction – Advanced 3D & Scroll-Driven Animation System
+   ========================================================================== */
+
+/* ----------------- 3D Perspective Root Setup ----------------- */
+:root {
+  --perspective-default: 1200px;
+  --card-tilt-shadow: 0 20px 30px -10px rgba(16, 185, 129, 0.15), 0 10px 15px -5px rgba(0, 0, 0, 0.05);
+  --card-glow-emerald: rgba(16, 185, 129, 0.12);
+}
+
+/* Three.js Fixed Background/Overlay Canvas Container */
+.three-scene-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none !important;
+  z-index: 5;
+  overflow: hidden;
+  transition: opacity 0.5s ease;
+}
+
+#three-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none !important;
+}
+
+/* WebGL Graceful Fallback Leaf (renders only if WebGL is unavailable) */
+.webgl-fallback-leaf {
+  position: absolute;
+  top: 15%;
+  right: 8%;
+  width: 140px;
+  height: 140px;
+  pointer-events: none;
+  filter: drop-shadow(0 15px 25px rgba(16, 185, 129, 0.35));
+  animation: fallbackFloat 4s ease-in-out infinite alternate;
+}
+
+.fallback-leaf-svg {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes fallbackFloat {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-20px) rotate(8deg); }
+}
+
+/* ----------------- Parallax Background Layers ----------------- */
+.parallax-bg-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.parallax-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.45;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.orb-1 {
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, rgba(167, 243, 208, 0.7) 0%, rgba(209, 250, 229, 0) 70%);
+  top: -100px;
+  right: -50px;
+}
+
+.orb-2 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(191, 219, 254, 0.55) 0%, rgba(239, 246, 255, 0) 70%);
+  top: 45%;
+  left: 20%;
+}
+
+.orb-3 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(254, 240, 138, 0.35) 0%, rgba(254, 252, 232, 0) 70%);
+  bottom: -150px;
+  right: 15%;
+}
+
+/* ----------------- Content Z-Index & Layout ----------------- */
+.main-wrapper {
+  position: relative;
+  z-index: 10;
+  perspective: var(--perspective-default);
+}
+
+.content-container {
+  position: relative;
+  z-index: 10;
+  transform-style: preserve-3d;
+}
+
+/* ----------------- 3D Interactive Cards ----------------- */
+.card,
+.stat-card,
+.chart-card,
+.insight-card {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+              border-color 0.2s ease;
+  will-change: transform, box-shadow;
+  overflow: visible;
+}
+
+/* Glassmorphism Edge Highlight */
+.card::before,
+.stat-card::before,
+.chart-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(16, 185, 129, 0.08), rgba(255, 255, 255, 0.2));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Dynamic Glare Overlay for 3D Tilt */
+.card-glare {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 65%);
+  opacity: 0;
+  mix-blend-mode: overlay;
+  transition: opacity 0.25s ease;
+  z-index: 2;
+}
+
+.stat-card:hover,
+.chart-card:hover,
+.card:hover {
+  box-shadow: var(--card-tilt-shadow);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.stat-card:hover .card-glare,
+.chart-card:hover .card-glare,
+.card:hover .card-glare {
+  opacity: 1;
+}
+
+/* Elevate Stat Card Icons in 3D Space */
+.stat-card .stat-icon {
+  transform: translateZ(24px);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.stat-card:hover .stat-icon {
+  transform: translateZ(36px) scale(1.1) rotate(6deg);
+}
+
+.stat-card .stat-value {
+  transform: translateZ(16px);
+}
+
+.stat-card .stat-label {
+  transform: translateZ(10px);
+}
+
+/* ----------------- 3D Interactive Buttons & Controls ----------------- */
+.btn {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1),
+              box-shadow 0.15s ease,
+              background-color 0.15s ease;
+  will-change: transform;
+}
+
+.btn:hover {
+  transform: translateY(-2px) translateZ(8px);
+  box-shadow: 0 8px 16px -4px rgba(16, 185, 129, 0.35);
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.98) translateZ(0);
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
+}
+
+.btn svg {
+  transition: transform 0.25s ease;
+}
+
+.btn:hover svg {
+  transform: rotate(-10deg) scale(1.1);
+}
+
+/* Navigation Link Micro-Transitions */
+.nav-link {
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.nav-link:hover {
+  transform: translateX(4px) translateZ(4px);
+  background-color: var(--emerald-50);
+  color: var(--emerald-700);
+}
+
+.nav-link.active {
+  background: linear-gradient(90deg, var(--emerald-50) 0%, rgba(209, 250, 229, 0.3) 100%);
+  border-left: 3px solid var(--emerald-600);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12);
+}
+
+.nav-link svg {
+  transition: transform 0.25s ease;
+}
+
+.nav-link:hover svg {
+  transform: scale(1.15) rotate(4deg);
+}
+
+/* ----------------- Scroll Animation Helper Classes ----------------- */
+.scroll-reveal-init {
+  opacity: 0;
+  transform: translateY(30px) translateZ(-40px);
+  will-change: transform, opacity;
+}
+
+.scroll-reveal-active {
+  opacity: 1;
+  transform: translateY(0) translateZ(0);
+  transition: opacity 0.7s cubic-bezier(0.2, 0.8, 0.2, 1),
+              transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Stagger item entrance */
+.stagger-item {
+  opacity: 0;
+  transform: translateY(24px) scale(0.97);
+  will-change: transform, opacity;
+}
+
+/* Section Marker Indicators */
+.section-3d-anchor {
+  position: relative;
+}
+
+/* ----------------- Auth Pages (Login & Register) 3D Layout ----------------- */
+.auth-page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 70% 30%, #ecfdf5 0%, #f8fafc 75%);
+  overflow-x: hidden;
+  perspective: 1200px;
+}
+
+.auth-page .three-scene-container {
+  z-index: 2;
+}
+
+.auth-container-3d {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 980px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px;
+  align-items: center;
+  padding: 24px;
+}
+
+.auth-hero-banner {
+  padding: 24px 20px;
+  transform-style: preserve-3d;
+}
+
+.auth-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background-color: var(--emerald-100);
+  color: var(--emerald-800);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.18);
+  transform: translateZ(10px);
+}
+
+.auth-hero-title {
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin-bottom: 14px;
+  letter-spacing: -0.8px;
+  transform: translateZ(16px);
+}
+
+.auth-hero-title span {
+  background: linear-gradient(135deg, var(--emerald-600) 0%, #047857 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.auth-hero-desc {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 24px;
+  transform: translateZ(8px);
+}
+
+.auth-feature-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-feature-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  backdrop-filter: blur(8px);
+  transform: translateZ(12px);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.auth-feature-pill:hover {
+  transform: translateX(4px) translateZ(18px);
+  background: #ffffff;
+}
+
+.auth-feature-pill .pill-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--emerald-50);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--emerald-600);
+  font-size: 14px;
+}
+
+.auth-card {
+  position: relative;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 25px 40px -15px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(16, 185, 129, 0.08);
+  padding: 40px;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.auth-card:hover {
+  box-shadow: 0 30px 50px -15px rgba(16, 185, 129, 0.2), 0 0 0 1px rgba(16, 185, 129, 0.25);
+}
+
+/* Enhanced Form Inputs */
+.form-control {
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.form-control:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15), 0 0 0 3px rgba(16, 185, 129, 0.2);
+  border-color: var(--emerald-500);
+}
+
+/* ----------------- Single column fallback for mobile auth ----------------- */
+@media (max-width: 900px) {
+  .auth-container-3d {
+    grid-template-columns: 1fr;
+    max-width: 500px;
+  }
+  .auth-hero-banner {
+    text-align: center;
+    padding: 10px 0;
+  }
+  .auth-hero-badge {
+    margin: 0 auto 12px;
+  }
+  .auth-feature-pills {
+    display: none;
+  }
+}
+
+/* ----------------- Reduced Motion Accessibility ----------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .three-scene-container {
+    opacity: 0.6;
+  }
+  
+  .card,
+  .stat-card,
+  .chart-card,
+  .btn,
+  .nav-link {
+    transform: none !important;
+  }
+}
+
+/* ----------------- Mobile Responsiveness ----------------- */
+@media (max-width: 768px) {
+  .three-scene-container {
+    opacity: 0.45;
+  }
+  
+  .card-glare {
+    display: none !important;
+  }
+  
+  .stat-card:hover,
+  .chart-card:hover,
+  .card:hover {
+    transform: none !important;
+  }
+}

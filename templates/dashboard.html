@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block header_title %}Operations Dashboard{% endblock %}
+{% block header_subtitle %}Real-time daily food tracking and waste monitoring for {{ current_owner.hotel }}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('add_food') }}" class="btn btn-primary">
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+  Add Today's Food Details
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Today's Key Metrics Overview -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-icon emerald">🍽️</div>
+    <div class="stat-content">
+      <div class="stat-label">Today's Menu Items</div>
+      <div class="stat-value">{{ today_stats.total_items }}</div>
+      <div class="stat-subtext">Dishes prepared today</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon blue">⚖️</div>
+    <div class="stat-content">
+      <div class="stat-label">Prepared Today</div>
+      <div class="stat-value">{{ "%.2f"|format(today_stats.quantity_prepared) }} <span style="font-size: 15px; font-weight: 500;">kg</span></div>
+      <div class="stat-subtext">Total quantity prepared</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon amber">😋</div>
+    <div class="stat-content">
+      <div class="stat-label">Consumed Today</div>
+      <div class="stat-value">{{ "%.2f"|format(today_stats.quantity_consumed) }} <span style="font-size: 15px; font-weight: 500;">kg</span></div>
+      <div class="stat-subtext">Served and eaten by guests</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon red">🗑️</div>
+    <div class="stat-content">
+      <div class="stat-label">Wasted Today</div>
+      <div class="stat-value">{{ "%.2f"|format(today_stats.quantity_wasted) }} <span style="font-size: 15px; font-weight: 500;">kg</span></div>
+      <div class="stat-subtext">Unconsumed surplus</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon {% if today_stats.waste_percentage > 20 %}red{% elif today_stats.waste_percentage > 10 %}amber{% else %}emerald{% endif %}">
+      📊
+    </div>
+    <div class="stat-content">
+      <div class="stat-label">Today's Waste Rate</div>
+      <div class="stat-value">
+        {{ "%.1f"|format(today_stats.waste_percentage|default(0.0)) }}%
+      </div>
+      <div class="stat-subtext">
+        {% if today_stats.waste_percentage == 0 and today_stats.quantity_prepared == 0 %}
+          No records logged today
+        {% elif today_stats.waste_percentage <= 10 %}
+          Excellent portion control
+        {% elif today_stats.waste_percentage <= 20 %}
+          Moderate waste margin
+        {% else %}
+          High waste alert
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Section -->
+<div class="charts-grid">
+  <!-- Chart 1: Category-Wise Waste -->
+  <div class="chart-card">
+    <div class="card-header">
+      <div>
+        <h3>Category-Wise Food Waste</h3>
+        <p class="card-subtitle">Waste distribution by food category</p>
+      </div>
+      <span class="badge badge-neutral">MongoDB Real Data</span>
+    </div>
+    {% if analysis.has_data and analysis.category_chart.labels|length > 0 %}
+      <div class="chart-container">
+        <canvas id="categoryChart"></canvas>
+      </div>
+    {% else %}
+      <div class="empty-state" style="padding: 30px 10px;">
+        <div class="empty-icon" style="width: 48px; height: 48px; font-size: 20px;">📊</div>
+        <p style="margin-bottom: 0;">No food data available yet for category breakdown.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Chart 2: Daily Waste Trend -->
+  <div class="chart-card">
+    <div class="card-header">
+      <div>
+        <h3>Daily Food Waste Trend</h3>
+        <p class="card-subtitle">Chronological timeline of prepared vs wasted food (kg)</p>
+      </div>
+      <span class="badge badge-neutral">MongoDB Real Data</span>
+    </div>
+    {% if analysis.has_data and analysis.date_chart.labels|length > 0 %}
+      <div class="chart-container">
+        <canvas id="trendChart"></canvas>
+      </div>
+    {% else %}
+      <div class="empty-state" style="padding: 30px 10px;">
+        <div class="empty-icon" style="width: 48px; height: 48px; font-size: 20px;">📈</div>
+        <p style="margin-bottom: 0;">Add food entries over time to visualize the daily waste timeline.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Today's Food Records Table -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h3>Today's Food Entries ({{ today_date }})</h3>
+      <p class="card-subtitle">Dishes logged for today's service</p>
+    </div>
+    <a href="{{ url_for('records') }}" class="btn btn-secondary btn-sm">View All Records &rarr;</a>
+  </div>
+
+  {% if today_records and today_records|length > 0 %}
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Food Item</th>
+            <th>Category</th>
+            <th>Prepared (kg)</th>
+            <th>Consumed (kg)</th>
+            <th>Wasted (kg)</th>
+            <th>Waste %</th>
+            <th>People Served</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in today_records %}
+            <tr>
+              <td><strong>{{ r.food_name }}</strong></td>
+              <td><span class="badge badge-neutral">{{ r.food_category }}</span></td>
+              <td>{{ "%.2f"|format(r.quantity_prepared) }} kg</td>
+              <td>{{ "%.2f"|format(r.quantity_consumed) }} kg</td>
+              <td><strong style="color: var(--red-600);">{{ "%.2f"|format(r.quantity_wasted) }} kg</strong></td>
+              <td>
+                {% set wp = r.waste_percentage|default(0.0) %}
+                <span class="badge {% if wp > 20 %}badge-high{% elif wp > 10 %}badge-mid{% else %}badge-low{% endif %}">
+                  {{ "%.1f"|format(wp) }}%
+                </span>
+              </td>
+              <td>{{ r.people_served }} guests</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">🍲</div>
+      <h3>No Food Entries Logged Today</h3>
+      <p>Start recording dishes prepared for today's lunch or dinner service to calculate surplus and track waste statistics in real time.</p>
+      <a href="{{ url_for('add_food') }}" class="btn btn-primary">
+        + Add Today's Food Details
+      </a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if analysis.has_data %}
+<!-- JSON Data Island for Visualizations (prevents VS Code JS syntax errors) -->
+<script type="application/json" id="dashboardChartsData">
+{
+  "categoryChart": {{ analysis.category_chart | tojson }},
+  "dateChart": {{ analysis.date_chart | tojson }}
+}
+</script>
+
+<script>
+  (function() {
+    const dataElement = document.getElementById('dashboardChartsData');
+    if (!dataElement) return;
+
+    const chartsData = JSON.parse(dataElement.textContent);
+    const catData = chartsData.categoryChart;
+    const trendData = chartsData.dateChart;
+
+    // Category-wise Food Waste Chart (Bar Chart)
+    const catCtx = document.getElementById('categoryChart');
+    if (catCtx && catData && catData.labels && catData.labels.length > 0) {
+      const catChart = new Chart(catCtx, {
+        type: 'bar',
+        data: {
+          labels: catData.labels,
+          datasets: [
+            {
+              label: 'Wasted (kg)',
+              data: catData.wasted,
+              backgroundColor: '#ef4444',
+              borderRadius: 6
+            },
+            {
+              label: 'Consumed (kg)',
+              data: catData.consumed,
+              backgroundColor: '#10b981',
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 1300,
+            easing: 'easeOutQuart'
+          },
+          plugins: {
+            legend: { position: 'top' },
+            tooltip: {
+              callbacks: {
+                afterLabel: function(ctx) {
+                  if (ctx.datasetIndex === 0 && catData.percentages) {
+                    return `Waste Rate: ${catData.percentages[ctx.dataIndex]}%`;
+                  }
+                }
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Kilograms (kg)' },
+              grid: { color: '#f1f5f9' }
+            }
+          }
+        }
+      });
+      if (window.FoodWasteAnimations) {
+        window.FoodWasteAnimations.registerChart('categoryChart', catChart);
+      }
+    }
+
+    // Daily Trend Chart (Line Chart)
+    const trendCtx = document.getElementById('trendChart');
+    if (trendCtx && trendData && trendData.labels && trendData.labels.length > 0) {
+      const trendChart = new Chart(trendCtx, {
+        type: 'line',
+        data: {
+          labels: trendData.labels,
+          datasets: [
+            {
+              label: 'Prepared (kg)',
+              data: trendData.prepared,
+              borderColor: '#3b82f6',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              fill: true,
+              tension: 0.35,
+              pointRadius: 4,
+              pointHoverRadius: 7
+            },
+            {
+              label: 'Wasted (kg)',
+              data: trendData.wasted,
+              borderColor: '#ef4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              fill: true,
+              tension: 0.35,
+              pointRadius: 4,
+              pointHoverRadius: 7
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 1500,
+            easing: 'easeOutCubic'
+          },
+          plugins: {
+            legend: { position: 'top' }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Kilograms (kg)' },
+              grid: { color: '#f1f5f9' }
+            }
+          }
+        }
+      });
+      if (window.FoodWasteAnimations) {
+        window.FoodWasteAnimations.registerChart('trendChart', trendChart);
+      }
+    }
+  })();
+</script>
+{% endif %}
+{% endblock %}
